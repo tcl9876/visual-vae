@@ -19,9 +19,11 @@ Then do :
 To sample from our pretrained models, you should first download them using the links from the Pretrained Models section below. In these examples, we assume you've downloaded the relevant model files into the directory "./models". The correct model config will be loaded if you specify the correct ``--config`` path.
 
 To create an $8 \times 8$ grid of CIFAR-10 samples:
+
 ```python scripts/evaluate.py --config "config/cifar10.py" --save_dir "./results" --checkpoint_path "./models/cifar10_ema_weights.pt" --n_samples 64 --nrow 8 ```
 
 To create a grid of ImageNet $64^2$ samples with a mean guidance strength of 1.5, and a variance guidance strength of 5.0:
+
 ```python scripts/evaluate.py --config "config/imagenet32.py" --save_dir "./results" --checkpoint_path "./models/i32_ema_weights.pt" --superres_config "config/imagenet64.py" --superres_checkpoint_path "./models/i64_ema_weights.pt" --n_samples 36 --nrow 6 --mean_scale 1.5 --var_scale 5.0  ```
 
 To perform unguided sampling (ImageNet only), set ``--mean_scale 0.0`` and ``--var_scale 0.0``. For  unconditional sampling, set ```--label 1000```. Alternatively, to generate images from a specific class, set ``label $LABEL_NUM`` (see [this website](https://deeplearning.cms.waikato.ac.nz/user-guide/class-maps/IMAGENET/) for the list of ImageNet class numbers.
@@ -41,6 +43,7 @@ The instructions above are for sampling with PyTorch. Sampling with the JAX mode
 The training configuration files are located within the  ``config`` folder - the config is divided into 4 parts: model architecture hyperparameters, dataset information, training details, and optimizer settings. We encourage you to look at the existing config files for more information, or if you want to change certain hyperparameters.
 
 Training in PyTorch (CIFAR-10 dataset):
+
 ``python scripts/train.py --config config/cifar10.py --global_dir "./training_results"``
 
 This will save the training checkpoints and logs to the folder ./training_results. 
