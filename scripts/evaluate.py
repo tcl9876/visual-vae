@@ -20,8 +20,8 @@ flags.DEFINE_string("superres_checkpoint_path", None, "the path(s) you will rest
 flags.DEFINE_integer("n_samples", 36, "the number of samples you want to create.")
 flags.DEFINE_integer("nrow", 6, "if you are making a grid, the number of columns in the grid. By default, we use 6 columns.")
 flags.DEFINE_integer("max_batch_size", 64, "the maximum allowable batch size for sampling.")
-flags.DEFINE_float("mean_scale", 1.0, "the guidance weight for classifier-free guidance of the mean.")
-flags.DEFINE_float("var_scale", 1.0, "the guidance weight for classifier-free guidance of the variance.")
+flags.DEFINE_float("mean_scale", 2.0, "the guidance weight for classifier-free guidance of the mean.")
+flags.DEFINE_float("var_scale", 4.0, "the guidance weight for classifier-free guidance of the variance.")
 flags.DEFINE_integer("label", -1, "If the model is class conditional, generates images from a certain class. Set to -1 for randomly chosen classes. Set to the number of classes in your dataset (e.g. 1000 for imagenet) for unconditional sampling.")
 flags.DEFINE_string("save_format", "grid", "either 'grid' or 'npz'. determines whether to save results as a grid of images (default, best for <= 100 images), or as an .npz file (for evaluation).")
 flags.mark_flags_as_required(["config", "checkpoint_path", "save_dir"])
@@ -54,6 +54,7 @@ def main(_):
     res = configs[-1].model.resolution
     samples = np.zeros([0, res, res, 3]).astype('uint8')
     
+    
     for n in range(0, args.n_samples, args.max_batch_size):
         batch_size = min(args.max_batch_size, args.n_samples - n)
         
@@ -64,6 +65,10 @@ def main(_):
             batch_label = torch.randint(size=[batch_size], high=configs[0].model.num_classes, device=device)
         else:
             batch_label = torch.tensor([args.label] * batch_size, device=device).int()
+        
+        if args.label == model.num_classes:
+            #if we're using unconditional sampling, so no need to do guidance.
+            args.mean_scale, args.var_scale = 0, 0
 
         current_images = models[0].p_sample(num=batch_size, label=batch_label, img_lr=None, mweight=args.mean_scale, vweight=args.var_scale)
         

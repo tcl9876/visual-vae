@@ -26,7 +26,7 @@ To create a grid of ImageNet $64^2$ samples with a mean guidance strength of 1.5
 
 ```python scripts/evaluate.py --config "config/imagenet32.py" --save_dir "./results" --checkpoint_path "./models/i32_ema_weights.pt" --superres_config "config/imagenet64.py" --superres_checkpoint_path "./models/i64_ema_weights.pt" --n_samples 36 --nrow 6 --mean_scale 1.5 --var_scale 5.0  ```
 
-To perform unguided sampling (ImageNet only), set ``--mean_scale 0.0`` and ``--var_scale 0.0``. For  unconditional sampling, set ```--label 1000```. Alternatively, to generate images from a specific class, set ``label $LABEL_NUM`` (see [this website](https://deeplearning.cms.waikato.ac.nz/user-guide/class-maps/IMAGENET/) for the list of ImageNet class numbers.
+To perform unguided sampling (ImageNet only), set ``--mean_scale 0.0`` and ``--var_scale 0.0``. If not specified, the default guidance values are 2.0 and 4.0 respectively. For unconditional sampling, set ```--label 1000```. Alternatively, to generate images from a specific class, set ``label $LABEL_NUM`` (see [this website](https://deeplearning.cms.waikato.ac.nz/user-guide/class-maps/IMAGENET/) for the list of ImageNet class numbers.
 
  To generate $32^2$ ImageNet samples (no super-resolution model in the pipeline), simply remove the ``supperres_config`` and ``--superres_checkpoint_path`` arguments.
 

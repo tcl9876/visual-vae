@@ -41,8 +41,8 @@ class StochasticConvLayer(nn.Module):
             pvar_u = get_smoothed_variance(pv_unconstrained_u)
 
             #compute distribution means and variances according to the guided sampling formula.
-            pmean = (pmean_u + mweight * (pmean_c - pmean_u))
-            pvar = pvar_u * torch.exp(vweight * (pvar_c.log() - pvar_u.log()))
+            pmean = (pmean_c + mweight * (pmean_c - pmean_u))
+            pvar = pvar_c * torch.exp(vweight * (pvar_c.log() - pvar_u.log()))
         else:
             #use the conditional mean and variance as usual.
             pmean, pvar = pmean_c, pvar_c
@@ -347,7 +347,7 @@ class VAE(nn.Module):
         else:
             uncond_label = None
 
-        is_guided = (mweight != 1 or vweight != 1)
+        is_guided = (mweight != 0 or vweight != 0)
 
         assert (img_lr is not None) == self.is_superres
         if self.is_superres: 
