@@ -16,7 +16,7 @@ Then do :
 
 ## Sampling
 
-To sample from our pretrained models, you should first download them using the links from the Pretrained Models section below. In these examples, we assume you've downloaded the relevant model files into the directory "./models". The correct model config will be loaded if you specify the correct ``--config`` path.
+To sample from our pretrained models, you should first download them using the links from the Pretrained Models section below. In these examples, we assume you've downloaded the relevant model files into the directory "./models". 
 
 To create an $8 \times 8$ grid of CIFAR-10 samples:
 
@@ -31,6 +31,8 @@ To perform unguided sampling (ImageNet only), set ``--mean_scale 0.0`` and ``--v
  To generate $32^2$ ImageNet samples (no super-resolution model in the pipeline), simply remove the ``supperres_config`` and ``--superres_checkpoint_path`` arguments.
 
 To create a .npz file of instead of a grid, e.g. for FID evaluation, add the argument ```--save_format "npz"```.
+
+If you trained your own model with a different config, remember to set the correct model config via  ``--config "config/my_new_config.py"`` 
 
 #### Sampling in JAX 
 The instructions above are for sampling with PyTorch. Sampling with the JAX models is essentially the same, except:
