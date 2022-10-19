@@ -1,4 +1,4 @@
-# visual-vae
+# Visual VAE
 
 Code for the paper "Optimizing Hierarchical Image VAEs for Sample Quality". Hierarchical VAEs are an extension of regular VAEs which uses a sequence of learned normal distributions for the prior and posterior. Notable examples include [NVAE](https://arxiv.org/abs/2007.03898) and [Very Deep VAE](https://arxiv.org/abs/2011.10650). We propose changes to these Hierarchical VAEs that help them generate better-looking samples, namely: 
 * controlling how much information is added in each latent variable layer
