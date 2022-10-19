@@ -70,7 +70,7 @@ JAX checkpoints:
 
 # Acknowledgements:
 
-* This research was supported by Google's TPU Research Cloud (TRC) Program, which provided Cloud TPUs for training the models. 
+* This research was supported by Google's TPU Research Cloud (TRC) Program, which provided Google Cloud TPUs for training the models. 
 
-* Portions of our codebase were adapted from the [Efficient-VDVAE](https://github.com/Rayhane-mamah/Efficient-VDVAE) and [Progressive Distillation](https://github.com/google-research/google-research/tree/master/diffusion_distillation) repositories - thanks for open-sourcing!
+* Portions of our codebase were adapted from the [Efficient-VDVAE](https://github.com/Rayhane-mamah/Efficient-VDVAE), [Progressive Distillation](https://github.com/google-research/google-research/tree/master/diffusion_distillation), and [Guided Diffusion](https://github.com/openai/guided-diffusion) repositories - thanks for open-sourcing!
 
