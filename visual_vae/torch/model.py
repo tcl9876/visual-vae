@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import numpy as np
 
-from .torch_utils import get_smoothed_variance, sample_diag_mvn, compute_mvn_kl, maybe_remat
+from .torch_utils import get_smoothed_variance, sample_diag_mvn, compute_mvn_kl
 from ..general_utils import get_resolutions, get_evenly_spaced_indices
 from .nn import Conv2D, Downsample, Upsample, ResBlock, AttentionLayer
 
@@ -59,17 +59,16 @@ class StochasticConvLayer(nn.Module):
         
         return x_c, x_u
     
-    #@maybe_remat
     def forward(self, eps, x, acts, label=None):
         if label is not None: label, cf_guidance_label = label #q is always conditional, p is not
         else: cf_guidance_label = None
         zdim = self.zdim
         p_out, sr_loss_p = self.prior_block(x, cf_guidance_label)
-        pmean, pv_unconstrained, h = p_out[..., :zdim], p_out[..., zdim:zdim*2], p_out[..., zdim*2:]
+        pmean, pv_unconstrained, h = p_out[:, :zdim, ...], p_out[:, zdim:zdim*2, ...], p_out[:, zdim*2:, ...]
 
-        concatted = torch.cat((x, acts), axis=-1)
+        concatted = torch.cat((x, acts), dim=1)
         q_out, sr_loss_q = self.posterior_block(concatted, label)
-        qmean, qv_unconstrained = torch.chunk(q_out, 2, axis=-1)     
+        qmean, qv_unconstrained = torch.chunk(q_out, 2, dim=1)     
 
         pvar = get_smoothed_variance(pv_unconstrained)
         qvar = get_smoothed_variance(qv_unconstrained)
@@ -131,14 +130,14 @@ class DecoderLevel(nn.Module):
         return x_c, x_u
 
     def forward(self, x, acts, label=None):
-        shape = (x.shape[0], self.current_resolution, self.current_resolution, self.zdim)
+        shape = (x.shape[0], self.zdim , self.current_resolution, self.current_resolution)
 
         KLs = []
         SR_Losses = 0.
         i = 0
         for layer in self.layer_list:
             if isinstance(layer, StochasticConvLayer):
-                eps = torch.randn(shape)
+                eps = torch.randn(shape, device=x.device)
                 x, kl, sr_loss = layer(eps, x, acts, label)
                 KLs.append(kl)
                 SR_Losses += sr_loss
@@ -353,7 +352,7 @@ class VAE(nn.Module):
         assert (img_lr is not None) == self.is_superres
         if self.is_superres: 
             c_aug = 0.1 if self.resolution==64 else 0.15 #TODO: get the c_aug from config
-            img_lr += c_aug * torch.randn(img_lr.shape)
+            img_lr += c_aug * torch.randn_like(img_lr)
             x_c = self.process_lowres_image(img_lr, label)
             x_u = self.process_lowres_image(img_lr, uncond_label) if is_guided else None
         else:

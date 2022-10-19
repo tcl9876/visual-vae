@@ -79,47 +79,19 @@ def plt_savefig(figure_path):
     )
 
 
-#Metrics related utils
-class MeanObject(object):
-    def __init__(self):
-        self.reset_states()
-    
-    def __repr__(self):
-        return repr(self._mean)
-     
-    def reset_states(self):
-        self._mean = 0.
-        self._count = 0
-        
-    def update(self, new_entry):
-        assert new_entry.shape == ()
-        self._count = self._count + 1
-        self._mean = (1-1/self._count)*self._mean + new_entry/self._count
-        
-    def result(self):
-        return self._mean
-        
-class Metrics(object):
-    def __init__(self, metric_names):
-        self.names = metric_names
-        self._metric_dict = {
-            name: MeanObject() for name in self.names
-        }
-    
-    def __repr__(self):
-        return repr(self._metric_dict)
-    
-    def update(self, new_metrics):
-        for name in self.names:
-            self._metric_dict[name].update(new_metrics[name])
-        
-    def reset_states(self):
-        for name in self.names:
-            self._metric_dict[name].reset_states()
-
-
-#a utility to convert the dataset inputs dictionary into a tuple of (img, label, img_lr)
+#a utility to standardize dataset examples into a tuple of (img, label, img_lr)
+#converts from either a dictionary or a list/tuple of 1-3 elements
 def extract_train_inputs_fn(train_inputs, is_labeled, lower_res):
+    if isinstance(train_inputs, (tuple, list)):
+        if len(train_inputs) == 3:
+            return train_inputs
+        elif len(train_inputs) == 2 and len(train_inputs[1].shape) == 4:
+            return (train_inputs[0], None, train_inputs[1])
+        elif len(train_inputs) == 2:
+            return (train_inputs[0], train_inputs[1], None)
+        else:
+            return (train_inputs[0], None, None)
+
     img = train_inputs["x"]
     if is_labeled:
         label = train_inputs["y"] if "y" in train_inputs.keys() else None

@@ -17,7 +17,7 @@ def save_checkpoint(state, ckpt_dir=None, ckpt_path=None, accelerator=None, keep
             time.sleep(1.0)
             ckpt_paths = sorted(gfile.glob(f'{ckpt_dir}/*.pt'))
 
-        step = state.step if hasattr(state, step) else "latest"
+        step = state.get_iteration() if "get_iteration" in dir(state) else "latest"
         ckpt_path = os.path.join(ckpt_dir, f'ckpt_{step}.pt')
 
     with gfile.GFile(ckpt_path, "wb") as f:
@@ -58,7 +58,7 @@ def calc_weight_for_kl(x, a, b, c):
     piece3 = (x-b) / (c-b) + 1.
     piece4 = 2.
     weighting_function_output = piece1*mask1 + piece2*mask2 + piece3*mask3 + piece4*mask4
-    return torch.maximum(weighting_function_output, 0.1) #the weight should never be zero.
+    return torch.maximum(weighting_function_output, 0.1 * torch.ones_like(weighting_function_output)) #the weight should never be zero.
 
 def weighted_kl(unweighted_kl, sum_of_kl, lower_percentage, upper_percentage):
     a = lower_percentage * sum_of_kl * 0.01  #the 0.01 is because its a percentage
@@ -81,7 +81,13 @@ def sample_diag_mvn(mean, var, temp=1., eps=None):
     return mean + eps * var.sqrt() * temp
 
 def compute_mvn_kl(mu1, var1, mu2, var2, rdim=(-1, -2, -3)):
-    C = 0.5 * (var2.log() - var1.log() - 1)
+    #workaround for float value of sigma_q, maybe fix later.
+    if isinstance(var1, float):
+        logvar1 = np.log(var1)
+    else:
+        logvar1 = var1.log()
+
+    C = 0.5 * (var2.log() - logvar1 - 1)
     kl = 0.5 * (var1 + (mu1 - mu2) **2) / var2 + C
     kl = kl.sum(dim=rdim)
     return kl
@@ -116,15 +122,12 @@ def maybe_remat(forward_method):
         module_parameters = module.parameters()
         if not hasattr(module, "checkpoint") or not module.checkpoint:
             #do the regular forward method if module.checkpoint is False, or if it doesn't have property checkpoint
-            return forward_method
+            return forward_method(*args, **kwargs)
 
         tuple(module_parameters) #workaround to prevent invalid number of arguments error from being thrown. 
         input_args = list(args)
-
-        """
-        CheckpointFunction expects a tuple of input_args, so if someone calls a forward() method with keyword arguments,
-        these values will not be passed in as they are in kwargs, not args. So, we add 
-        """
+        #CheckpointFunction expects a tuple of input_args, so if someone calls a forward() method with keyword arguments,
+        #these values will not be passed in as they are in kwargs, not args. So, we add 
         all_args = inspect.signature(forward_method).parameters
         argnames, argvals = list(all_args.keys()), list(all_args.values())
         for argnum in range(len(input_args), len(all_args)):

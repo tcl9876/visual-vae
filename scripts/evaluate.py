@@ -2,6 +2,7 @@ import numpy as np
 import torch
 from tensorflow.io import gfile
 import os
+from accelerate import Accelerator
 
 from absl import app, flags
 from ml_collections.config_flags import config_flags
@@ -41,11 +42,13 @@ def main(_):
         assert args.superres_checkpoint_path is not None, "You must provide --superres_config if you are trying to load the super-resolution model."
         ckpt_paths += [args.superres_checkpoint_path]
 
+    accelerator = Accelerator()
     models = []
     for config, ckpt_path in zip(configs, ckpt_paths):
         margs = config.model
         model = VAE(**margs)
         restore_checkpoint(model, ckpt_path=ckpt_path)
+        model = accelerator.prepare(model)
         models.append(model)
 
     res = configs[-1].model.resolution
@@ -54,19 +57,21 @@ def main(_):
     for n in range(0, args.n_samples, args.max_batch_size):
         batch_size = min(args.max_batch_size, args.n_samples - n)
         
+        device = next(model.parameters()).device
         if not models[0].num_classes:
             batch_label = None
         elif args.label == -1:
-            batch_label = torch.randint(size=[batch_size], high=configs[0].model.num_classes)
+            batch_label = torch.randint(size=[batch_size], high=configs[0].model.num_classes, device=device)
         else:
-            batch_label = torch.tensor([args.label] * batch_size).long()
+            batch_label = torch.tensor([args.label] * batch_size, device=device).int()
 
         current_images = models[0].p_sample(num=batch_size, label=batch_label, img_lr=None, mweight=args.mean_scale, vweight=args.var_scale)
         
         if len(models) == 2:
             current_images = models[1].p_sample(num=batch_size, label=batch_label, img_lr=current_images)
         
-        current_images = denormalize(current_images.cpu().permute(0, 2, 3, 1).numpy())
+        current_images = accelerator.gather(current_images).cpu()
+        current_images = denormalize(current_images.permute(0, 2, 3, 1).numpy())
         samples = np.concatenate((samples, current_images), axis=0)
     
     ext = "png" if args.save_format.lower() == "grid" else "npz"

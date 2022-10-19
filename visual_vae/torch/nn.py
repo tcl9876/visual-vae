@@ -36,11 +36,11 @@ class ConvSR(nn.Module):
         w = self.conv.weight.data
         w = torch.reshape(w, [-1, self.c_out]) #[C, C, k, k] -> [k** 2 * C, C] 
 
+        self.singular_vectors = self.singular_vectors.to(w.device)
         v_unnormalized = transposed_matmul(self.singular_vectors, w, perm=[1, 0])
         v = v_unnormalized / torch.linalg.norm(v_unnormalized, ord=2)
         u_unnormalized = torch.matmul(v, w)
 
-        self.singular_vectors = self.singular_vectors.to(w.device)
         self.singular_vectors = u_unnormalized / torch.linalg.norm(u_unnormalized, ord=2)
 
         sigma = transposed_matmul(
@@ -111,7 +111,7 @@ class ResBlock(nn.Module):
         else:
             self.conv2 = Conv2D(self.c, self.c_out, ksize, w_scale=self.w_scale)
     
-    #@maybe_remat
+    @maybe_remat
     def forward(self, inputs, label=None):
         x = inputs.clone()
 
@@ -148,7 +148,7 @@ class AttentionLayer(nn.Module):
         self.outproj = nn.Linear(c, c)
         self.outproj.weight.data.fill_(0.0)
     
-    #@maybe_remat
+    @maybe_remat
     def forward(self, x, label=None):
         B, C, H, W = x.shape
 

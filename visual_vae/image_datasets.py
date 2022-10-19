@@ -2,6 +2,7 @@ from PIL import Image
 import numpy as np
 import random
 import os
+import torch
 from tensorflow.io import gfile
 from torch.utils.data import DataLoader, Dataset
 from .dataset_utils import cifar_loader_wrapper, _list_image_files_recursively, random_crop_arr, center_crop_arr, NumpyLoader
@@ -21,14 +22,33 @@ class NoPIL_CIFAR10(CIFAR10):
 
         return img, target
 
+#source: https://gist.github.com/MFreidank/821cc87b012c53fade03b0c7aba13958
+class InfiniteDataLoader(DataLoader):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Initialize an iterator over the dataset.
+        self.dataset_iterator = super().__iter__()
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        try:
+            batch = next(self.dataset_iterator)
+        except StopIteration:
+            # Dataset exhausted, use a new fresh iterator.
+            self.dataset_iterator = super().__iter__()
+            batch = next(self.dataset_iterator)
+        return batch
+
 def create_dataset(dargs, repeating=True):
     is_cifar = "cifar" in dargs.dataset_name.lower()
 
     if is_cifar:
         def map_fn(x):
             x = x/127.5 - 1.
-            return x
-        
+            return torch.tensor(x).float().permute(2, 0, 1)
+                
         dataset = NoPIL_CIFAR10(dargs.data_dir, download=True, 
             transform=transforms.Lambda(map_fn)
         )
@@ -41,21 +61,18 @@ def create_dataset(dargs, repeating=True):
             dataset, batch_size=dargs.batch_size, num_workers=1, drop_last=True
         )
     else:
-        loader = DataLoader(
+        loader = InfiniteDataLoader(
             dataset, batch_size=dargs.batch_size, num_workers=1, drop_last=True
         )
     
-    if is_cifar:
-        loader = cifar_loader_wrapper(loader)
+    #maybe bring this back for JAX version? accelerate doesnt like it since it converts to a generator
+    #if is_cifar:
+    #    loader = cifar_loader_wrapper(loader)
     
     if dargs.framework.lower() in ['jax', 'flax']:
         from .dataset_utils import numpy_loader_to_jax_dataset #lazy import so we don't depend on JAX
         loader = numpy_loader_to_jax_dataset(loader, dargs.batch_size)
     
-    if repeating:
-        while True:
-            yield from loader
-
     return loader
 
 #Code credit for this class: https://github.com/openai/guided-diffusion/blob/22e0df8183507e13a7813f8d38d51b072ca1e67c/guided_diffusion/image_datasets.py

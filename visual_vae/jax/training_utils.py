@@ -309,3 +309,41 @@ class CosineDecay:
         decay_factor = (1 - minlr/maxlr) * decay_factor + minlr/maxlr
         lr = maxlr * decay_factor
         return jnp.minimum(warmup, lr)
+
+#Metrics related utils
+class MeanObject(object):
+    def __init__(self):
+        self.reset_states()
+    
+    def __repr__(self):
+        return repr(self._mean)
+     
+    def reset_states(self):
+        self._mean = 0.
+        self._count = 0
+        
+    def update(self, new_entry):
+        assert isinstance(new_entry, float)# or L.shape == () #what is L? commenting out.
+        self._count = self._count + 1
+        self._mean = (1-1/self._count)*self._mean + new_entry/self._count
+        
+    def result(self):
+        return self._mean
+        
+class Metrics(object):
+    def __init__(self, metric_names):
+        self.names = metric_names
+        self._metric_dict = {
+            name: MeanObject() for name in self.names
+        }
+    
+    def __repr__(self):
+        return repr(self._metric_dict)
+    
+    def update(self, new_metrics):
+        for name in self.names:
+            self._metric_dict[name].update(new_metrics[name])
+        
+    def reset_states(self):
+        for name in self.names:
+            self._metric_dict[name].reset_states()

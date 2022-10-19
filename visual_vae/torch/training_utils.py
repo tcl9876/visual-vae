@@ -1,8 +1,5 @@
-from pyexpat import model
 import torch
 from visual_vae.torch.torch_utils import compute_mvn_kl, weighted_kl
-from torch.optim.lr_scheduler import _LRScheduler
-from torch.optim import Adam, Adamax
     
 def training_losses_fn(train_inputs, model, device_count, global_sr_weight, sigma_q, rate_schedule): 
     img, label, img_lr = train_inputs
@@ -10,12 +7,12 @@ def training_losses_fn(train_inputs, model, device_count, global_sr_weight, sigm
     model_out, unweighted_kls, sr_loss = model(img, label, img_lr)
     sr_loss *= global_sr_weight
 
-    mean_output, var_output = torch.chunk(model_out, 2, axis=-1)
+    mean_output, var_output = torch.chunk(model_out, 2, dim=1)
     qvar = (sigma_q ** 2)
-    neg_logpx_z = compute_mvn_kl(img, qvar, mean_output, var_output.exp(), raxis=None) #shape is ()
+    neg_logpx_z = compute_mvn_kl(img, qvar, mean_output, var_output.exp(), rdim=(0,1,2,3)) #shape is ()
 
-    total_kl_per_image = torch.sum(torch.stack(unweighted_kls, axis=-1), axis=-1)  #(B, )
-    KL_Loss = torch.float32(0.)
+    total_kl_per_image = torch.sum(torch.stack(unweighted_kls, dim=-1), dim=-1)  #(B, )
+    KL_Loss = torch.zeros_like(neg_logpx_z)
     for i, k in enumerate(unweighted_kls):
         w = rate_schedule[i]
         k_weighted = weighted_kl(k, total_kl_per_image, w, 2.*w)
@@ -29,84 +26,63 @@ def training_losses_fn(train_inputs, model, device_count, global_sr_weight, sigm
     return total_loss, metrics
 
 class TrainState:
-    def __init__(self, model, optimizer, scheduler):
+    def __init__(self, model, optimizer, ema_decay, startlr, maxlr, minlr, warmup_steps, decay_steps):
         self.model = model
         self.optimizer = optimizer
-        self.scheduler = scheduler
-    
-    def state_dict(self):
-        return {
-            "model": self.model,
-            "optimizer": self.optimizer,
-            "scheduler": self.scheduler
-        }
-
-    def load_state_dict(self, state_dict):
-        self.model.load_state_dict(
-            state_dict["model"]
-        )
-        self.optimizer.load_state_dict(
-            state_dict["optimizer"]
-        )
-                
-        self.scheduler.load_state_dict(
-            state_dict["scheduler"]
-        )
-        
-    def get_step(self):
-        return self.scheduler.last_epoch
-
-def make_optimizer(model, maxlr, opt_type, ema_decay, betas):
-    optimizer_class = Adamax if opt_type.lower() == "adamax" else Adam
-    if ema_decay is None:
-        return optimizer_class(model.parameters(), maxlr, betas=betas)
-    
-    class EMAStateOptimizer(optimizer_class):
-        def __init__(self, model, maxlr, betas):
-            super().__init__(model.parameters(), maxlr, betas=betas)
-            
-            self.model = model
-            self.ema_parameters = [p.data.clone() for p in self.model.parameters()]
-            self.ema_decay = ema_decay
-
-        def step(self):
-            super().step()
-            with torch.no_grad():
-                for i, ema_param, model_param in zip(range(len(self.ema_parameters)), self.ema_parameters, self.model.parameters()):
-                    self.ema_parameters[i] = self.ema_decay * ema_param + (1 - self.ema_decay) * model_param
-
-        def state_dict(self):
-            sd = super().state_dict()
-            sd["ema_parameters"] = self.ema_parameters
-            return sd
-        
-        def load_state_dict(self, state_dict):
-            if "ema_parameters" in state_dict.keys():
-                self.ema_parameters = [w for w in state_dict.pop("ema_parameters")]
-                super().load_state_dict(state_dict)
-            else:
-                #the current state dict does not have EMA parameters, so we set the EMA parameters to be the restored weights.
-                super().load_state_dict(state_dict)
-                self.ema_parameters = [w.data.clone() for w in self.model_parameters]
-
-    return EMAStateOptimizer(model, maxlr, betas)
-
-#https://stackoverflow.com/questions/62724824/what-is-the-param-last-epoch-on-pytorch-optimizers-schedulers-is-for
-#supposedly, "last_epoch" means "last iteration" as it supposedly increments upon a call to optimizer.step()
-class CosineDecayScheduler(_LRScheduler):
-    def __init__(self, optimizer, startlr, maxlr, minlr, warmup_steps, decay_steps, last_epoch=-1):
-        
+        self.device = next(model.parameters()).device
+        self.iterations = torch.zeros((), device=self.device, dtype=torch.int32)
+        self.skips = 0
+        self.ema_decay = ema_decay
         self.startlr = startlr
         self.maxlr = maxlr
         self.minlr = minlr
-        self.warmup_steps = max(warmup_steps, 1)
-        self.decay_steps = decay_steps
+        self.warmup_steps = warmup_steps
+        self.decay_steps = torch.tensor(decay_steps, device=self.device, dtype=torch.int32)
 
-        super(CosineDecayScheduler, self).__init__(optimizer=optimizer, last_epoch=last_epoch)
+        if self.ema_decay is not None:
+            self.ema_parameters = [p.data.clone() for p in self.model.parameters()]
+        else:
+            self.ema_parameters = None
+    
+    def state_dict(self):
+        return {
+            "model": self.model.state_dict(),
+            "optimizer": self.optimizer.state_dict(),
+            "ema_parameters": self.ema_parameters,
+            "iterations": self.iterations,
+            "skips": self.skips
+        }
 
-    def step_func(self):
-        step = self.last_epoch
-        step = torch.minimum(step, self.decay_steps)
+    def load_state_dict(self, state_dict):
+        if sorted(state_dict.keys()) == sorted(["model", "optimizer", "ema_parameters", "iterations", "skips"]):
+            self.model.load_state_dict(
+                state_dict["model"]
+            )
+            if "param_groups" in state_dict["optimizer"].keys():
+                self.optimizer.load_state_dict(
+                    state_dict["optimizer"]
+                )
+            else:
+                print("The restored optimizer had an empty state (there were no param_groups)")
+            if state_dict["ema_parameters"] is not None:
+                self.ema_parameters = [w for w in state_dict.pop("ema_parameters")]
+            else:
+                #the current state dict does not have EMA parameters, so we set the EMA parameters to be the restored weights.
+                self.ema_parameters = [p.data.clone() for p in self.model.parameters()]
+
+            self.iterations = state_dict["iterations"]
+            self.skips = state_dict["skips"]
+        else:
+            #try to restore from a model-only state dict ()
+            if sorted(self.model.state_dict().keys()) == sorted(state_dict.keys()):
+                self.model.load_state_dict(state_dict)
+                print("The loaded state restored only model parameters, but no optimizer state.")
+            else:
+                print("Could not load the model state dict. Continuing training without the restored state dict.")
+
+    def rate(self):
+        step = self.iterations
+        step = torch.minimum(torch.tensor(step, device=self.device), self.decay_steps)
         startlr, maxlr, minlr = self.startlr, self.maxlr, self.minlr
         warmup = startlr + step/self.warmup_steps * (maxlr - startlr)
 
@@ -114,6 +90,66 @@ class CosineDecayScheduler(_LRScheduler):
         decay_factor = (1 - minlr/maxlr) * decay_factor + minlr/maxlr
         lr = maxlr * decay_factor
         return torch.minimum(warmup, lr)
+    
+    def get_iteration(self):
+        return self.iterations.item()
 
-    def get_lr(self):
-        return [self.step_func() for v in self.base_lrs]
+    @torch.no_grad()
+    def step(self):
+        self.optimizer.step()
+        self.iterations += 1
+        rate = self.rate()
+        for p in self.optimizer.param_groups:
+            p['lr'] = rate
+
+        if self.ema_parameters is not None:
+            for i, ema_param, model_param in zip(range(len(self.ema_parameters)), self.ema_parameters, self.model.parameters()):
+                self.ema_parameters[i] = self.ema_decay * ema_param + (1 - self.ema_decay) * model_param
+    
+        self.optimizer.zero_grad()
+
+#Metrics related utils
+class MeanObject(object):
+    def __init__(self):
+        self.reset_states()
+    
+    def reset_states(self):
+        self._mean = 0.
+        self._count = 0
+        
+    def update(self, new_entry):
+        if not isinstance(new_entry, (int, float)):
+            assert new_entry.shape == ()
+        self._count = self._count + 1
+        self._mean = (1-1/self._count)*self._mean + new_entry/self._count
+        
+    def result(self):
+        return self._mean
+        
+class Metrics(object):
+    def __init__(self, metric_names, accelerator):
+        self.names = metric_names
+        self.accelerator = accelerator
+        self._metric_dict = {
+            name: MeanObject() for name in self.names
+        }
+        
+    
+    def __repr__(self):
+        metric_dict = {}
+        for k, v in self._metric_dict.items():
+            result = self.accelerator.gather(v.result())
+            if not isinstance(result, (int, float)):
+                result = result.mean().item()
+            metric_dict[k] = result
+
+        return repr(metric_dict)
+
+    def update(self, new_metrics):
+        for name in self.names:
+            if name in new_metrics.keys():
+                self._metric_dict[name].update(new_metrics[name])
+        
+    def reset_states(self):
+        for name in self.names:
+            self._metric_dict[name].reset_states()
