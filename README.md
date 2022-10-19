@@ -2,7 +2,7 @@
 
 Code for the paper "Optimizing Hierarchical Image VAEs for Sample Quality". Hierarchical VAEs are an extension of regular VAEs which uses a sequence of learned normal distributions for the prior and posterior. Notable examples include [NVAE](https://arxiv.org/abs/2007.03898) and [Very Deep VAE](https://arxiv.org/abs/2011.10650). We propose changes to these Hierarchical VAEs that help them generate better-looking samples, namely: 
 * controlling how much information is added in each latent variable layer
-* changing the output layer from a discrete mixture of logistics to a continuous Gaussian output
+* Using a continuous Gaussian KL loss instead of a discrete (mixture of logistic distributions) loss.
 * using a guided sampling strategy similar to  [classifier-free guidance](https://openreview.net/forum?id=qw8AKxfYbI) in diffusion models
 
 This release includes models for CIFAR-10 and ImageNet $64^2$ $-$ the ImageNet $64^2$ model consists of a base model that generates $32^2$ images, followed by a $2 \times$ super-resolution model. On these two datasets, we achieve FID scores of 20.82 on CIFAR-10 and 17.5 on ImageNet $64^2$; these results are considerably better than previous state-of-the-art VAEs.
