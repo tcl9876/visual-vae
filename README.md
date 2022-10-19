@@ -5,7 +5,7 @@ Code for the paper "Optimizing Hierarchical Image VAEs for Sample Quality". Hier
 * Using a continuous Gaussian KL loss instead of a discrete (mixture of logistic distributions) loss.
 * using a guided sampling strategy similar to  [classifier-free guidance](https://openreview.net/forum?id=qw8AKxfYbI) in diffusion models
 
-This release includes models for CIFAR-10 and ImageNet $64^2$ $-$ the ImageNet $64^2$ model consists of a base model that generates $32^2$ images, followed by a $2 \times$ super-resolution model. On these two datasets, we achieve FID scores of 20.82 on CIFAR-10 and 17.5 on ImageNet $64^2$; these results are considerably better than previous state-of-the-art VAEs.
+This release includes models for CIFAR-10 and ImageNet $64^2$ $-$ the ImageNet $64^2$ model consists of a base model that generates $32^2$ images, followed by a $2 \times$ super-resolution model. On these two datasets, we achieve FID scores of 20.82 and 17.5 respectively; these results are considerably better than previous state-of-the-art VAEs.
 
 # Instructions for usage
 First, clone our repository and change directory into it.  Install the requirements via:
