@@ -1,7 +1,5 @@
 torch
 torchvision
-flax
 ml_collections
 accelerate
 tensorflow>=2.5.0
-jax>=0.3.0

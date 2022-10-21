@@ -35,10 +35,12 @@ To create a .npz file of instead of a grid, e.g. for FID evaluation, add the arg
 If you trained your own model with a different config, remember to set the correct model config via  ``--config "config/my_new_config.py"`` 
 
 #### Sampling in JAX 
+
 The instructions above are for sampling with PyTorch. Sampling with the JAX models is essentially the same, except:
 * use ``scripts/evaluate_jax.py`` instead of ``scripts/evaluate.py`` 
 * use the JAX checkpoints instead of the PyTorch ones (e.g. ``cifar10_ema_weights_jax.p`` instead of ``cifar10_ema_weights.pt``)
 
+<b>Note:</b> you will need to install JAX and flax, e.g. via ``pip install jax>=0.3.0 flax`` 
 
 ## Training
 

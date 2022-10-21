@@ -25,7 +25,7 @@ def get_config():
 
     config["dataset"] = ConfigDict({
         "dataset_name": 'imagenet32',
-        "data_dir": "{}/data",
+        "data_dir": "{}",
 
         # Important: this is the *microbatch* size, (i.e. the batch size before accumulation, not after).
         # so reduce this number if you are running out of memory, but would like to keep a large effective batch size.

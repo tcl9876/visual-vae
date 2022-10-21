@@ -17,16 +17,17 @@ tf_set_visible_devices([], device_type="GPU")
 np.set_printoptions(precision=4)
 jnp.set_printoptions(precision=4)
 
-from visual_vae.jax.training_utils import CosineDecay, EMATrainState, EMATrainStateAccum, Adam, Adamax, training_losses_fn, train_step_fn
+from visual_vae.jax.training_utils import Metrics, CosineDecay, EMATrainState, EMATrainStateAccum, Adam, Adamax, training_losses_fn, train_step_fn
 from visual_vae.jax.jax_utils import unreplicate, copy_pytree, count_params, generation_step_fn, save_checkpoint, restore_checkpoint
-from visual_vae.general_utils import get_rate_schedule, print_and_log, denormalize, save_images, extract_train_inputs_fn, Metrics
+from visual_vae.general_utils import get_rate_schedule, print_and_log, denormalize, save_images, extract_train_inputs_fn
 from visual_vae.image_datasets import create_dataset
 from visual_vae.jax.model import VAE
 
 args = flags.FLAGS
 config_flags.DEFINE_config_file("config", None, "the location of the config path you will use to train the model. e.g. ./config/cifar10.py")
 flags.DEFINE_string("global_dir", None, "the global directory you will save all training stuff into.")
-flags.mark_flags_as_required(["config", "global_dir"])
+flags.DEFINE_string("data_dir", None, "the directory where your data is stored (or where it will be downloaded into).")
+flags.mark_flags_as_required(["config", "global_dir", "data_dir"])
 
 def main(_):
     #setup basic config stuff
@@ -41,7 +42,7 @@ def main(_):
     if not gfile.isdir(global_dir):
         gfile.makedirs(global_dir)
     
-    dargs.data_dir = dargs.data_dir.format(global_dir)
+    dargs.data_dir = dargs.data_dir.format(args.data_dir)
     targs.checkpoint_dirs = [subdir.format(global_dir) for subdir in targs.checkpoint_dirs]
     targs.log_dir = targs.log_dir.format(global_dir)
     dargs.framework = "JAX"
@@ -50,7 +51,7 @@ def main(_):
         dataset = create_dataset(dargs)
     except BaseException as e:
         print(e)
-        print("Dataset creation failed. Perhaps you forgot to specify which dataset you're using via the --dataset argument?")
+        print("Dataset creation failed. Perhaps you forgot to specify which dataset you're using via the --data_dir argument?")
         return 
 
     #create logfile

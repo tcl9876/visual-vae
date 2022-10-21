@@ -75,7 +75,8 @@ def train_step_fn(rng, state, train_inputs, skip_counter, training_losses, resol
     state = jax.lax.cond(global_norm < skip_threshold, update_func, do_nothing, operand=None)
     skip_bool = jnp.logical_or(global_norm >= skip_threshold, jnp.isnan(global_norm))  
 
-    state = accum_apply(state, n_accums)
+    if n_accums > 1:
+        state = accum_apply(state, n_accums)
 
     skip_counter += jnp.int32(skip_bool)
     return state, metrics, global_norm, skip_counter

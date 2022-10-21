@@ -82,7 +82,7 @@ class TrainState:
 
     def rate(self):
         step = self.iterations
-        step = torch.minimum(torch.tensor(step, device=self.device), self.decay_steps)
+        step = torch.minimum(step, self.decay_steps)
         startlr, maxlr, minlr = self.startlr, self.maxlr, self.minlr
         warmup = startlr + step/self.warmup_steps * (maxlr - startlr)
 

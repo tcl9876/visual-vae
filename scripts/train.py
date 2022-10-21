@@ -2,7 +2,6 @@ import time
 import os
 import numpy as np
 from functools import partial
-from copy import deepcopy
 import torch
 import contextlib
 from accelerate import Accelerator
@@ -25,8 +24,9 @@ from visual_vae.torch.model import VAE
 args = flags.FLAGS
 config_flags.DEFINE_config_file("config", None, "the location of the config path you will use to train the model. e.g. ./config/cifar10.py")
 flags.DEFINE_string("global_dir", None, "the global directory you will save all training stuff into.")
+flags.DEFINE_string("data_dir", None, "the directory where your data is stored (or where it will be downloaded into).")
 flags.DEFINE_string("restore_path", None, "use this option to explicitly restore from a certain path, e.g. from a pretrained model weights path a specified earlier checkpoint")
-flags.mark_flags_as_required(["config", "global_dir"])
+flags.mark_flags_as_required(["config", "global_dir", "data_dir"])
 
 def main(_):
     #setup basic config stuff
@@ -38,7 +38,7 @@ def main(_):
     targs = config.training
     oargs = config.optimizer
     
-    dargs.data_dir = dargs.data_dir.format(global_dir)
+    dargs.data_dir = dargs.data_dir.format(args.data_dir)
     targs.checkpoint_dirs = [subdir.format(global_dir) for subdir in targs.checkpoint_dirs]
     targs.log_dir = targs.log_dir.format(global_dir)
     dargs.framework = "torch"
@@ -81,7 +81,7 @@ def main(_):
     except BaseException as e:
         if ismain:
             print(e)
-            print("Dataset creation failed. Perhaps you forgot to specify which dataset you're using via the --dataset argument?")
+            print("Dataset creation failed. Perhaps you forgot to specify which dataset you're using via the --data_dir argument?")
             return 
 
     #make things needed for training and distribute them - don't send scheduler through prepare
