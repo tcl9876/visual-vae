@@ -1,6 +1,6 @@
 # Visual VAE
 
-Code for the paper "Optimizing Hierarchical Image VAEs for Sample Quality". Hierarchical VAEs are an extension of regular VAEs which uses a sequence of learned normal distributions for the prior and posterior. Notable examples include [NVAE](https://arxiv.org/abs/2007.03898) and [Very Deep VAE](https://arxiv.org/abs/2011.10650). We propose changes to these Hierarchical VAEs that help them generate better-looking samples, namely: 
+Code for the paper "[Optimizing Hierarchical Image VAEs for Sample Quality](https://arxiv.org/abs/2210.10205)". Hierarchical VAEs are an extension of regular VAEs which uses a sequence of learned normal distributions for the prior and posterior. Notable examples include [NVAE](https://arxiv.org/abs/2007.03898) and [Very Deep VAE](https://arxiv.org/abs/2011.10650). We propose changes to these Hierarchical VAEs that help them generate better-looking samples, namely: 
 * controlling how much information is added in each latent variable layer
 * Using a continuous Gaussian KL loss instead of a discrete (mixture of logistic distributions) loss.
 * using a guided sampling strategy similar to  [classifier-free guidance](https://openreview.net/forum?id=qw8AKxfYbI) in diffusion models
@@ -76,3 +76,16 @@ JAX checkpoints:
 
 * Portions of our codebase were adapted from the [Efficient-VDVAE](https://github.com/Rayhane-mamah/Efficient-VDVAE), [Progressive Distillation](https://github.com/google-research/google-research/tree/master/diffusion_distillation), and [Guided Diffusion](https://github.com/openai/guided-diffusion) repositories - thanks for open-sourcing!
 
+# Citation:
+
+If you found this repository useful to your research, please consider citing our paper:
+```
+@misc{luhman2022optimizing,
+      title={Optimizing Hierarchical Image VAEs for Sample Quality}, 
+      author={Eric Luhman and Troy Luhman},
+      year={2022},
+      eprint={2210.10205},
+      archivePrefix={arXiv},
+      primaryClass={cs.LG}
+}
+```
