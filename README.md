@@ -50,10 +50,7 @@ Training in PyTorch (CIFAR-10 dataset):
 
 ``python scripts/train.py --config config/cifar10.py --global_dir "./training_results"``
 
-This will save the training checkpoints and logs to the folder ./training_results. 
-
-<b>Note:</b> Training code is still a work in progress but should be finalized within the next couple of days. 
-
+This will save the training checkpoints and logs to the folder ./training_results.
 
 # Pretrained Models
 
